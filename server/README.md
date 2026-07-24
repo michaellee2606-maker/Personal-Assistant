@@ -1,5 +1,5 @@
 ---
-title: Auto Train Agents Server
+title: Personal Assistant Server
 emoji: 🐳
 colorFrom: yellow
 colorTo: indigo

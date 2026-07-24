@@ -3,7 +3,7 @@ import { Client } from '@langchain/langgraph-sdk'
 import { useAuth } from '../../context/useAuth.js'
 import styles from './Chat.module.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://cripple-lee-auto-train-agents-server.hf.space'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://cripple-lee-personal-assistant-server.hf.space'
 const client = new Client({ apiUrl: API_BASE })
 
 function ChatMessage({ role, content, isStreaming }) {
@@ -114,7 +114,7 @@ export default function Chat() {
   return (
     <div className={styles.chat}>
       <header className={styles.header}>
-        <h1>AUTO TRAIN AGENTS</h1>
+        <h1>PERSONAL ASSISTANT</h1>
       </header>
 
       <div className={styles.messages}>

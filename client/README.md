@@ -1,5 +1,5 @@
 ---
-title: Auto Train Agents Client
+title: Personal Assistant Client
 emoji: ⚡️
 colorFrom: red
 colorTo: yellow
@@ -9,16 +9,16 @@ app_file: dist/index.html
 app_build_command: npm run build
 ---
 
-# Auto Train Agents Client
+# Personal Assistant Client
 
-This is the client interface for the Auto Train Agents application.
+This is the client interface for the Personal Assistant application.
 
 ## Connecting to the Hugging Face Space Server
 
 The client is configured to connect to the Hugging Face Space server by default:
 
 ```
-https://huggingface.co/spaces/Cripple-Lee/Auto-Train-Agents-Server
+https://huggingface.co/spaces/Cripple-Lee/Personal-Assistant-Server
 ```
 
 ### Environment Configuration

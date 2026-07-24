@@ -12,11 +12,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Sync Client Code to Space Cripple-Lee/Auto-Train-Agents-Client
+      - name: Sync Client Code to Space Cripple-Lee/Personal-Assistant-Client
         uses: huggingface/hub-sync@v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: Cripple-Lee/Auto-Train-Agents-Client
+          huggingface_repo_id: Cripple-Lee/Personal-Assistant-Client
           hf_token: ${{ secrets.HF_TOKEN }}
           subdirectory: 'client'
           space_sdk: 'static'
@@ -27,11 +27,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Sync Server Code to Space Cripple-Lee/Auto-Train-Agents-Server
+      - name: Sync Server Code to Space Cripple-Lee/Personal-Assistant-Server
         uses: huggingface/hub-sync@v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: Cripple-Lee/Auto-Train-Agents-Server
+          huggingface_repo_id: Cripple-Lee/Personal-Assistant-Server
           hf_token: ${{ secrets.HF_TOKEN }}
           subdirectory: 'server'
           space_sdk: 'docker'
