@@ -41,7 +41,6 @@ class State:
     """
 
     messages: list = None
-    changeme: str = "example"
 
     def __post_init__(self):
         if self.messages is None:
@@ -70,7 +69,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
     logger.info(f"State:{state}")
 
-    messages = state.messages + [HumanMessage(content=state.changeme)]
+    messages = state.messages
     content = ""
     async for chunk in model.astream(messages):
         logger.info(f"Chunk:{chunk}")
@@ -81,7 +80,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
     messages.append({"role": "assistant", "content": content})
 
-    return {"messages": messages, "changeme": content}
+    return {"messages": messages}
 
 # Define the graph
 graph = (
