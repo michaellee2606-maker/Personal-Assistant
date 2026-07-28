@@ -16,6 +16,6 @@ VOLUME ["/data/postgres"]
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-    CMD pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-personal_assistant}
+    CMD pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}
 
 # Default PostgreSQL entrypoint from base image will run
