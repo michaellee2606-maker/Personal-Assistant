@@ -8,9 +8,9 @@ const client = new Client({ apiUrl: API_BASE })
 
 function ChatMessage({ role, content, isStreaming }) {
   return (
-    <div className={`${styles.message} ${role === 'user' ? styles.user : styles.agent}`}>
+    <div className={`${styles.message} ${role === 'human' ? styles.user : styles.agent}`}>
       <div className={styles.bubble}>
-        <span className={styles.role}>{role === 'user' ? 'You' : 'AI'}</span>
+        <span className={styles.role}>{role === 'human' ? 'You' : 'AI'}</span>
         <p className={styles.content}>
           {content}
           {role === 'agent' && isStreaming && <span className={styles.cursor} aria-hidden="true" />}
@@ -24,7 +24,7 @@ export default function Chat() {
   const { hfToken } = useAuth()
 
   const [messages, setMessages] = useState([
-    { role: 'agent', content: 'Hello! How can I help you today?' },
+    { role: 'assistant', content: 'Hello! How can I help you today?', id: 0 },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,12 +44,18 @@ export default function Chat() {
     e.preventDefault()
     const text = input.trim()
     if (!text || loading) return
+    
+    const humanMessage = { role: 'human', content: text, id: messages.length }
 
-    const userMessage = { role: 'user', content: text }
-    setMessages((prev) => [...prev, userMessage])
+    const updatedMessages = [...messages, humanMessage]
+    setMessages(updatedMessages)
     setInput('')
     setLoading(true)
     setError(null)
+
+    updatedMessages.forEach(
+      message => console.log('Message: <' + message.role + '> ' + message.content)
+    )
 
     try {
       const assistantId = 'agent'
@@ -58,7 +64,7 @@ export default function Chat() {
         thread.thread_id,
         assistantId,
         {
-          input: { changeme: text },
+          input: { messages: updatedMessages },
           context: { hf_token: hfToken },
           streamMode: ['messages'],
         },
@@ -77,12 +83,12 @@ export default function Chat() {
             const text = String(value)
             hasStartedStreaming = true
             
-            setMessages((prev) => {
+            setMessages((messages) => {
               // Find the last message if it's from the agent and currently streaming
-              const lastMessageIndex = prev.length - 1
-              if (lastMessageIndex >= 0 && prev[lastMessageIndex].role === 'agent') {
+              const lastMessageIndex = messages.length - 1
+              if (lastMessageIndex >= 0 && messages[lastMessageIndex].role === 'assistant') {
                 // Update the last message with accumulated content
-                const updatedMessages = [...prev]
+                const updatedMessages = [...messages]
                 updatedMessages[lastMessageIndex] = { 
                   ...updatedMessages[lastMessageIndex], 
                   content: text 
@@ -90,8 +96,8 @@ export default function Chat() {
                 return updatedMessages
               } else {
                 // Create the first assistant message
-                setStreamingId(prev.length)
-                return [...prev, { role: 'agent', content: text, id: prev.length }]
+                setStreamingId(messages.length)
+                return [...messages, { role: 'assistant', content: text, id: messages.length }]
               }
             })
           }
@@ -102,14 +108,14 @@ export default function Chat() {
 
       // If we didn't get any streaming content, show a message
       if (!hasStartedStreaming) {
-        setMessages((prev) => [...prev, { role: 'agent', content: 'There are some problems with the agent.' }])
+        setMessages((messages) => [...messages, { role: 'assistant', content: 'There are some problems with the agent.' }])
       }
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+}
 
   return (
     <div className={styles.chat}>
