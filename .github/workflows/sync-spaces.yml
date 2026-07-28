@@ -57,5 +57,5 @@ jobs:
           github_repo_id: ${{ github.repository }}
           huggingface_repo_id: Cripple-Lee/Personal-Assistant-Postgres
           hf_token: ${{ secrets.HF_TOKEN }}
-          subdirectory: 'infrastructure'
+          subdirectory: 'infrastructure/postgres'
           space_sdk: 'docker'
