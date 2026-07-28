@@ -84,11 +84,5 @@ docker build -t langgraph-agent .
 docker run -p 2024:2024 langgraph-agent
 ```
 
-Or use Docker Compose:
-
-```bash
-docker-compose up
-```
-
 Note: You'll need to set the `HUGGINGFACEHUB_API_TOKEN` environment variable in a `.env` file or pass it as an environment variable to the container.
 
