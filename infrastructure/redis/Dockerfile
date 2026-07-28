@@ -1,7 +1,7 @@
 FROM redis:7-alpine
 
 # Set environment variable for Redis password
-ENV REDIS_PASSWORD=${REDIS_PASSWORD}
+ENV REDISCLI_AUTH=${REDIS_PASSWORD}
 
 # Create data directory
 RUN mkdir -p /data/redis
@@ -13,4 +13,4 @@ EXPOSE 6379
 VOLUME ["/data/redis"]
 
 # Start Redis with password authentication
-CMD ["redis-cli", "-a", "${REDIS_PASSWORD}"]
+CMD ["redis-cli"]
