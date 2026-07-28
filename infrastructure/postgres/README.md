@@ -1,7 +1,7 @@
 ---
-title: Personal Assistant Infrastructure
+title: Personal Assistant Postgres
 emoji: 🚀
-colorFrom: yellow
+colorFrom: blue
 colorTo: gray
 sdk: docker
 pinned: false
