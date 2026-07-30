@@ -48,7 +48,24 @@ export default function Chat() {
     const loadThreads = async () => {
       try {
         const result = await client.threads.search({ limit: 20 })
-        setThreads(result)
+        // Fetch message previews for each thread to show summaries in sidebar
+        const threadsWithPreviews = await Promise.all(
+          result.map(async (thread) => {
+            try {
+              const state = await client.threads.getState(thread.thread_id)
+              const messages = state.values?.messages || []
+              const firstUserMessage = messages.find((m) => m.type === 'human')
+              const preview = firstUserMessage?.content
+                ? String(firstUserMessage.content).slice(0, 50) +
+                  (String(firstUserMessage.content).length > 50 ? '…' : '')
+                : 'New conversation'
+              return { ...thread, preview }
+            } catch {
+              return { ...thread, preview: 'New conversation' }
+            }
+          })
+        )
+        setThreads(threadsWithPreviews)
       } catch (err) {
         console.error('Failed to load threads:', err)
       }
@@ -87,7 +104,7 @@ export default function Chat() {
     try {
       const thread = await client.threads.create()
       setThreadId(thread.thread_id)
-      setThreads((prev) => [thread, ...prev])
+      setThreads((prev) => [{ ...thread, preview: 'New conversation' }, ...prev])
       setMessages([GREETING])
       setStreamingId(null)
       setInput('')
@@ -143,6 +160,16 @@ export default function Chat() {
         const thread = await client.threads.create()
         currentThreadId = thread.thread_id
         setThreadId(currentThreadId)
+        setThreads((prev) => [{ ...thread, preview: text.slice(0, 50) + (text.length > 50 ? '…' : '') }, ...prev])
+      } else {
+        // Update preview with latest user message for existing thread
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.thread_id === currentThreadId
+              ? { ...t, preview: text.slice(0, 50) + (text.length > 50 ? '…' : '') }
+              : t
+          )
+        )
       }
       const stream = client.runs.stream(
         currentThreadId,

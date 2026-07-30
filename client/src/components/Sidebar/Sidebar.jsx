@@ -2,6 +2,10 @@ import { useState } from 'react'
 import styles from './Sidebar.module.css'
 
 function formatThreadLabel(thread) {
+  // Show message preview if available, otherwise fall back to timestamp
+  if (thread.preview) {
+    return thread.preview
+  }
   const date = new Date(thread.created_at)
   const today = new Date()
   const isToday = date.toDateString() === today.toDateString()
