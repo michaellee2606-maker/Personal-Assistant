@@ -211,6 +211,7 @@ export default function Chat() {
         loading={loading}
         onSelectThread={loadThreadHistory}
         onNewChat={handleNewConversation}
+        onDeleteThread={handleDeleteThread}
       />
       <div className={styles.chat}>
         <header className={styles.header}>
