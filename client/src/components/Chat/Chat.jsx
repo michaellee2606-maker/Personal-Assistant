@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Client } from '@langchain/langgraph-sdk'
 import { useAuth } from '../../context/useAuth.js'
+import Sidebar from '../Sidebar/Sidebar.jsx'
 import styles from './Chat.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://cripple-lee-personal-assistant-server.hf.space'
@@ -31,6 +32,7 @@ export default function Chat() {
   const [error, setError] = useState(null)
   const [streamingId, setStreamingId] = useState(null)
   const [threadId, setThreadId] = useState(null)
+  const [threads, setThreads] = useState([])
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -41,6 +43,43 @@ export default function Chat() {
     scrollToBottom()
   }, [messages])
 
+  // Load persisted threads on mount so past conversations can be reopened.
+  useEffect(() => {
+    const loadThreads = async () => {
+      try {
+        const result = await client.threads.search({ limit: 20 })
+        setThreads(result)
+      } catch (err) {
+        console.error('Failed to load threads:', err)
+      }
+    }
+    loadThreads()
+  }, [])
+
+  const loadThreadHistory = async (id) => {
+    if (loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      const state = await client.threads.getState(id)
+      const history = (state.values?.messages || [])
+        .filter((m) => m?.content)
+        .map((m, i) => ({
+          role: m.type === 'human' ? 'human' : 'assistant',
+          content: typeof m.content === 'string' ? m.content : '',
+          id: m.id || i,
+        }))
+      setThreadId(id)
+      setMessages(history.length > 0 ? [GREETING, ...history] : [GREETING])
+      setStreamingId(null)
+      setInput('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleNewConversation = async () => {
     if (loading) return
     setLoading(true)
@@ -48,9 +87,31 @@ export default function Chat() {
     try {
       const thread = await client.threads.create()
       setThreadId(thread.thread_id)
+      setThreads((prev) => [thread, ...prev])
       setMessages([GREETING])
       setStreamingId(null)
       setInput('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteThread = async (id) => {
+    if (loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      await client.threads.delete(id)
+      setThreads((prev) => prev.filter((t) => t.thread_id !== id))
+      // If the deleted conversation is currently open, reset the chat view.
+      if (id === threadId) {
+        setThreadId(null)
+        setMessages([GREETING])
+        setStreamingId(null)
+        setInput('')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -87,7 +148,9 @@ export default function Chat() {
         currentThreadId,
         assistantId,
         {
-          input: { messages: updatedMessages },
+          // Only send the new human message; the server-side checkpointer
+          // already holds the full conversation history for this thread.
+          input: { messages: [{ role: 'human', content: text, id: messages.length }] },
           context: { hf_token: hfToken },
           streamMode: ['messages'],
         },
@@ -141,46 +204,47 @@ export default function Chat() {
 }
 
   return (
-    <div className={styles.chat}>
-      <header className={styles.header}>
-        <h1>ASSISTANT</h1>
-        <button
-          type="button"
-          className={styles.newChat}
-          onClick={handleNewConversation}
-          disabled={loading}
-        >
-          + New Conversation
-        </button>
-      </header>
+    <div className={styles.layout}>
+      <Sidebar
+        threads={threads}
+        activeThreadId={threadId}
+        loading={loading}
+        onSelectThread={loadThreadHistory}
+        onNewChat={handleNewConversation}
+      />
+      <div className={styles.chat}>
+        <header className={styles.header}>
+          <h1>ASSISTANT</h1>
+        </header>
 
-      <div className={styles.messages}>
-        {messages.map((msg, index) => (
-          <ChatMessage key={index} role={msg.role} content={msg.content} isStreaming={msg.id === streamingId} />
-        ))}
-        {loading && (
-          <div className={styles.loading}>
-            <span className={styles.spinner} aria-hidden="true" />
-            Agent is thinking…
-          </div>
-        )}
-        {error && <div className={styles.error}>Error: {error}</div>}
-        <div ref={messagesEndRef} />
+        <div className={styles.messages}>
+          {messages.map((msg, index) => (
+            <ChatMessage key={index} role={msg.role} content={msg.content} isStreaming={msg.id === streamingId} />
+          ))}
+          {loading && (
+            <div className={styles.loading}>
+              <span className={styles.spinner} aria-hidden="true" />
+              Agent is thinking…
+            </div>
+          )}
+          {error && <div className={styles.error}>Error: {error}</div>}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form className={styles.inputArea} onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message…"
+            disabled={loading}
+            aria-label="Message"
+          />
+          <button type="submit" disabled={loading || !input.trim()}>
+            Send
+          </button>
+        </form>
       </div>
-
-      <form className={styles.inputArea} onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message…"
-          disabled={loading}
-          aria-label="Message"
-        />
-        <button type="submit" disabled={loading || !input.trim()}>
-          Send
-        </button>
-      </form>
     </div>
   )
 }

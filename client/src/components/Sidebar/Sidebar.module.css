@@ -1,0 +1,218 @@
+.sidebar {
+  flex: 0 0 260px;
+  width: 260px;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  box-sizing: border-box;
+  padding: 16px 12px;
+  gap: 16px;
+  overflow: hidden;
+  transition: flex-basis 0.25s ease, width 0.25s ease, padding 0.25s ease;
+}
+
+.collapsed {
+  flex-basis: 64px;
+  width: 64px;
+  padding: 16px 8px;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toggle {
+  align-self: flex-end;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent-bg);
+  }
+}
+
+.collapsed .toggle {
+  align-self: center;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.chevronRight {
+  transform: rotate(180deg);
+}
+
+.newChat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s, transform 0.1s;
+
+  &:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.collapsed .newChat {
+  justify-content: center;
+  padding: 10px 0;
+  width: 100%;
+}
+
+.newChatIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.newChatLabel {
+  overflow: hidden;
+  max-width: 120px;
+  opacity: 1;
+  transition: max-width 0.25s ease, opacity 0.2s ease;
+}
+
+.collapsed .newChatLabel {
+  max-width: 0;
+  opacity: 0;
+}
+
+.threadList {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty {
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.threadItem {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-h);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent-bg);
+  }
+}
+
+.threadButton {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.collapsed .threadButton {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.deleteThread {
+  flex: 0 0 auto;
+  margin-right: 6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+
+  .threadItem:hover &,
+  &:focus-visible {
+    opacity: 1;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 60, 60, 0.15);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.active {
+  background: var(--accent-bg);
+  font-weight: 600;
+}
+
+.threadIcon {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+
+.threadLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  opacity: 1;
+  transition: max-width 0.25s ease, opacity 0.2s ease;
+}
+
+.collapsed .threadLabel {
+  max-width: 0;
+  opacity: 0;
+}
