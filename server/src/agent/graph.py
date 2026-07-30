@@ -5,17 +5,16 @@ Returns a predefined response. Replace logic and configuration as needed.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
 from langgraph.graph import StateGraph
+from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
 import logging
 import asyncio
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.messages import HumanMessage
 
 
 logging.basicConfig(level=logging.INFO)
@@ -32,19 +31,16 @@ class Context(TypedDict):
     my_configurable_param: str
 
 
-@dataclass
-class State:
+class State(TypedDict):
     """Input state for the agent.
 
     Defines the initial structure of incoming data.
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     """
 
-    messages: list = None
-
-    def __post_init__(self):
-        if self.messages is None:
-            self.messages = []
+    # add_messages appends new messages to the checkpointed history instead of
+    # overwriting it, so each run only needs to send the new human message.
+    messages: Annotated[list, add_messages]
 
 
 async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
@@ -69,7 +65,7 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
     logger.info(f"State:{state}")
 
-    messages = state.messages
+    messages = state["messages"]
     content = ""
     async for chunk in model.astream(messages):
         logger.info(f"Chunk:{chunk}")
@@ -78,9 +74,9 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
     logger.info(f"Response:{content}")
 
-    messages.append({"role": "assistant", "content": content})
-
-    return {"messages": messages}
+    # Return only the new assistant message; the add_messages reducer appends
+    # it to the persisted thread history.
+    return {"messages": [{"role": "assistant", "content": content}]}
 
 # Define the graph
 graph = (
