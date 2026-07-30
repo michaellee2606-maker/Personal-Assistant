@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Client } from '@langchain/langgraph-sdk'
 import { useAuth } from '../../context/useAuth.js'
 import Sidebar from '../Sidebar/Sidebar.jsx'
+import TimeTravelPanel from '../TimeTravel/TimeTravelPanel.jsx'
 import styles from './Chat.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://cripple-lee-personal-assistant-server.hf.space'
@@ -33,6 +34,13 @@ export default function Chat() {
   const [streamingId, setStreamingId] = useState(null)
   const [threadId, setThreadId] = useState(null)
   const [threads, setThreads] = useState([])
+  const [showTimeTravel, setShowTimeTravel] = useState(false)
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [activeCheckpointId, setActiveCheckpointId] = useState(null)
+  // Remembers the forked checkpoint per thread, so reopening a conversation
+  // from the sidebar shows the messages at the fork point instead of the tip.
+  const [forkedCheckpoints, setForkedCheckpoints] = useState({})
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -78,7 +86,12 @@ export default function Chat() {
     setLoading(true)
     setError(null)
     try {
-      const state = await client.threads.getState(id)
+      // If this conversation was forked at a checkpoint earlier, check out
+      // the messages at that checkpoint instead of the thread tip.
+      const forkCheckpointId = forkedCheckpoints[id]
+      const state = forkCheckpointId
+        ? await client.threads.getState(id, forkCheckpointId)
+        : await client.threads.getState(id)
       const history = (state.values?.messages || [])
         .filter((m) => m?.content)
         .map((m, i) => ({
@@ -87,9 +100,103 @@ export default function Chat() {
           id: m.id || i,
         }))
       setThreadId(id)
+      setActiveCheckpointId(state.checkpoint?.checkpoint_id ?? null)
+      // Drop the previous thread's checkpoints; the sync effect reloads them
+      // for the newly selected thread if the panel is open.
+      setHistory([])
       setMessages(history.length > 0 ? [GREETING, ...history] : [GREETING])
       setStreamingId(null)
       setInput('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch the checkpoint history for the given thread (newest first).
+  const refreshHistory = async (id) => {
+    if (!id) {
+      setHistory([])
+      return
+    }
+    setHistoryLoading(true)
+    setError(null)
+    try {
+      const states = await client.threads.getHistory(id, { limit: 50 })
+      setHistory(states)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  // Keep the time travel panel in sync with the selected conversation:
+  // whenever the active thread changes while the panel is open, reload that
+  // thread's checkpoints. The fetch is deferred to a microtask so no setState
+  // runs synchronously in the effect body.
+  useEffect(() => {
+    if (!showTimeTravel) return
+    let cancelled = false
+    queueMicrotask(async () => {
+      setHistoryLoading(true)
+      try {
+        const states = await client.threads.getHistory(threadId, { limit: 50 })
+        if (!cancelled) setHistory(states)
+      } catch (err) {
+        if (!cancelled) setError(err.message)
+      } finally {
+        if (!cancelled) setHistoryLoading(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [showTimeTravel, threadId])
+
+  const handleToggleTimeTravel = () => {
+    setShowTimeTravel((open) => !open)
+  }
+
+  const handleForkFromCheckpoint = async (state) => {
+    if (loading || !threadId) return
+    const checkpointId = state.checkpoint?.checkpoint_id
+    if (!checkpointId) return
+    setLoading(true)
+    setError(null)
+    try {
+      // Load the state at the chosen checkpoint so the chat view shows the
+      // conversation exactly as it was at that point in time.
+      const pastState = await client.threads.getState(threadId, checkpointId)
+      const pastMessages = (pastState.values?.messages || [])
+        .filter((m) => m?.content)
+        .map((m, i) => ({
+          role: m.type === 'human' ? 'human' : 'assistant',
+          content: typeof m.content === 'string' ? m.content : '',
+          id: m.id || i,
+        }))
+      setMessages(pastMessages.length > 0 ? [GREETING, ...pastMessages] : [GREETING])
+      // Remember the fork point; the next run passes it as checkpointId so
+      // LangGraph forks the thread from this checkpoint instead of the tip.
+      setActiveCheckpointId(checkpointId)
+      // Associate the fork with this thread so selecting the conversation in
+      // the sidebar later checks out the messages at this checkpoint.
+      setForkedCheckpoints((prev) => ({ ...prev, [threadId]: checkpointId }))
+      // Trim the checkpoint list to the timeline at the fork point: history
+      // is newest-first, so keep everything from the forked checkpoint's
+      // index onward (i.e. that checkpoint and all earlier ones).
+      setHistory((prev) => {
+        const forkIndex = prev.findIndex(
+          (s) => s.checkpoint?.checkpoint_id === checkpointId
+        )
+        return forkIndex >= 0 ? prev.slice(forkIndex) : prev
+      })
+      // Clear the remaining transient states so the chat starts fresh from
+      // the forked checkpoint: close the panel and reset input/streaming.
+      setStreamingId(null)
+      setInput('')
+      setShowTimeTravel(false)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -104,6 +211,8 @@ export default function Chat() {
     try {
       const thread = await client.threads.create()
       setThreadId(thread.thread_id)
+      setActiveCheckpointId(null)
+      setHistory([])
       setThreads((prev) => [{ ...thread, preview: 'New conversation' }, ...prev])
       setMessages([GREETING])
       setStreamingId(null)
@@ -122,12 +231,20 @@ export default function Chat() {
     try {
       await client.threads.delete(id)
       setThreads((prev) => prev.filter((t) => t.thread_id !== id))
+      setForkedCheckpoints((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       // If the deleted conversation is currently open, reset the chat view.
       if (id === threadId) {
         setThreadId(null)
+        setActiveCheckpointId(null)
         setMessages([GREETING])
         setStreamingId(null)
         setInput('')
+        setShowTimeTravel(false)
+        setHistory([])
       }
     } catch (err) {
       setError(err.message)
@@ -160,6 +277,7 @@ export default function Chat() {
         const thread = await client.threads.create()
         currentThreadId = thread.thread_id
         setThreadId(currentThreadId)
+        setActiveCheckpointId(null)
         setThreads((prev) => [{ ...thread, preview: text.slice(0, 50) + (text.length > 50 ? '…' : '') }, ...prev])
       } else {
         // Update preview with latest user message for existing thread
@@ -180,6 +298,9 @@ export default function Chat() {
           input: { messages: [{ role: 'human', content: text, id: messages.length }] },
           context: { hf_token: hfToken },
           streamMode: ['messages'],
+          // When the user picked a past checkpoint via time travel, fork the
+          // thread from that checkpoint instead of running from the tip.
+          ...(activeCheckpointId ? { checkpointId: activeCheckpointId } : {}),
         },
       )
 
@@ -218,6 +339,19 @@ export default function Chat() {
       }
 
       setStreamingId(null)
+      // The run created a new checkpoint at the thread tip; clear the fork
+      // point so following messages continue from the latest state, and drop
+      // the thread's fork record since the fork is now part of its history.
+      setActiveCheckpointId(null)
+      setForkedCheckpoints((prev) => {
+        const next = { ...prev }
+        delete next[currentThreadId]
+        return next
+      })
+      // Keep the time travel panel up to date with the new checkpoint.
+      if (showTimeTravel) {
+        refreshHistory(currentThreadId)
+      }
 
       // If we didn't get any streaming content, show a message
       if (!hasStartedStreaming) {
@@ -243,6 +377,16 @@ export default function Chat() {
       <div className={styles.chat}>
         <header className={styles.header}>
           <h1>ASSISTANT</h1>
+          <button
+            type="button"
+            className={styles.timeTravelToggle}
+            onClick={handleToggleTimeTravel}
+            disabled={loading || !threadId}
+            title={threadId ? 'Browse checkpoints and fork the conversation' : 'Start a conversation first'}
+            aria-pressed={showTimeTravel}
+          >
+            ⏱ Time travel
+          </button>
         </header>
 
         <div className={styles.messages}>
@@ -273,6 +417,15 @@ export default function Chat() {
           </button>
         </form>
       </div>
+      {showTimeTravel && (
+        <TimeTravelPanel
+          history={history}
+          loading={historyLoading}
+          activeCheckpointId={activeCheckpointId}
+          onFork={handleForkFromCheckpoint}
+          onClose={() => setShowTimeTravel(false)}
+        />
+      )}
     </div>
   )
 }
