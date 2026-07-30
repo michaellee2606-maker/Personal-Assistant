@@ -20,16 +20,17 @@ function ChatMessage({ role, content, isStreaming }) {
   )
 }
 
+const GREETING = { role: 'assistant', content: 'Hello! How can I help you today?', id: 0 }
+
 export default function Chat() {
   const { hfToken } = useAuth()
 
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hello! How can I help you today?', id: 0 },
-  ])
+  const [messages, setMessages] = useState([GREETING])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [streamingId, setStreamingId] = useState(null)
+  const [threadId, setThreadId] = useState(null)
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -39,6 +40,23 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const handleNewConversation = async () => {
+    if (loading) return
+    setLoading(true)
+    setError(null)
+    try {
+      const thread = await client.threads.create()
+      setThreadId(thread.thread_id)
+      setMessages([GREETING])
+      setStreamingId(null)
+      setInput('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -59,9 +77,14 @@ export default function Chat() {
 
     try {
       const assistantId = 'agent'
-      const thread = await client.threads.create()
+      let currentThreadId = threadId
+      if (!currentThreadId) {
+        const thread = await client.threads.create()
+        currentThreadId = thread.thread_id
+        setThreadId(currentThreadId)
+      }
       const stream = client.runs.stream(
-        thread.thread_id,
+        currentThreadId,
         assistantId,
         {
           input: { messages: updatedMessages },
@@ -120,7 +143,15 @@ export default function Chat() {
   return (
     <div className={styles.chat}>
       <header className={styles.header}>
-        <h1>PERSONAL ASSISTANT</h1>
+        <h1>ASSISTANT</h1>
+        <button
+          type="button"
+          className={styles.newChat}
+          onClick={handleNewConversation}
+          disabled={loading}
+        >
+          + New Conversation
+        </button>
       </header>
 
       <div className={styles.messages}>
