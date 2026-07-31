@@ -100,7 +100,6 @@ export default function Chat() {
           id: m.id || i,
         }))
       setThreadId(id)
-      setActiveCheckpointId(state.checkpoint?.checkpoint_id ?? null)
       // Drop the previous thread's checkpoints; the sync effect reloads them
       // for the newly selected thread if the panel is open.
       setHistory([])
@@ -160,6 +159,7 @@ export default function Chat() {
   }
 
   const handleForkFromCheckpoint = async (state) => {
+    console.log('Forking from checkpoint state:', state)
     if (loading || !threadId) return
     const checkpointId = state.checkpoint?.checkpoint_id
     if (!checkpointId) return
@@ -176,6 +176,10 @@ export default function Chat() {
           content: typeof m.content === 'string' ? m.content : '',
           id: m.id || i,
         }))
+      // Restore the last human message as the input so the user can continue
+      // the conversation from that point, and show the rest of the messages in the chat view.
+      const lastMessage = pastMessages.pop()
+      setInput(lastMessage?.role === 'human' ? lastMessage.content : '')
       setMessages(pastMessages.length > 0 ? [GREETING, ...pastMessages] : [GREETING])
       // Remember the fork point; the next run passes it as checkpointId so
       // LangGraph forks the thread from this checkpoint instead of the tip.
@@ -195,7 +199,6 @@ export default function Chat() {
       // Clear the remaining transient states so the chat starts fresh from
       // the forked checkpoint: close the panel and reset input/streaming.
       setStreamingId(null)
-      setInput('')
       setShowTimeTravel(false)
     } catch (err) {
       setError(err.message)
@@ -277,7 +280,6 @@ export default function Chat() {
         const thread = await client.threads.create()
         currentThreadId = thread.thread_id
         setThreadId(currentThreadId)
-        setActiveCheckpointId(null)
         setThreads((prev) => [{ ...thread, preview: text.slice(0, 50) + (text.length > 50 ? '…' : '') }, ...prev])
       } else {
         // Update preview with latest user message for existing thread
@@ -289,20 +291,41 @@ export default function Chat() {
           )
         )
       }
-      const stream = client.runs.stream(
-        currentThreadId,
-        assistantId,
-        {
-          // Only send the new human message; the server-side checkpointer
-          // already holds the full conversation history for this thread.
-          input: { messages: [{ role: 'human', content: text, id: messages.length }] },
-          context: { hf_token: hfToken },
-          streamMode: ['messages'],
-          // When the user picked a past checkpoint via time travel, fork the
-          // thread from that checkpoint instead of running from the tip.
-          ...(activeCheckpointId ? { checkpointId: activeCheckpointId } : {}),
-        },
-      )
+
+      let stream = null
+      if (activeCheckpointId) {
+        console.log('Sending message with checkpointId:', activeCheckpointId)
+
+        const newConfig = await client.threads.updateState(
+          currentThreadId,
+          {
+            values: { messages: [humanMessage] },
+            checkpointId: activeCheckpointId,
+          }
+        )
+
+        stream = client.runs.stream(
+          currentThreadId,
+          assistantId,
+          {
+            input: null,
+            context: { hf_token: hfToken },
+            streamMode: ['messages'],
+            checkpointId: newConfig.configurable?.checkpoint_id,
+          }
+        )
+      } else {
+        console.log('Sending message without checkpointId')
+        stream = client.runs.stream(
+          currentThreadId,
+          assistantId,
+          {
+            input: { messages: [humanMessage] },
+            context: { hf_token: hfToken },
+            streamMode: ['messages'],
+          },
+        )
+      }
 
       let hasStartedStreaming = false
 

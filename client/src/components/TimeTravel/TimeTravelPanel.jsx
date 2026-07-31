@@ -1,8 +1,6 @@
 import styles from './TimeTravelPanel.module.css'
 
 function formatCheckpointLabel(state, index) {
-  const checkpoint = state.checkpoint
-  const createdAt = checkpoint?.ts ? new Date(checkpoint.ts) : null
   const messages = state.values?.messages || []
   const lastMessage = messages[messages.length - 1]
   const snippet = lastMessage?.content
@@ -11,13 +9,8 @@ function formatCheckpointLabel(state, index) {
     : '(empty state)'
 
   return {
-    step: state.metadata?.step ?? index,
     source: state.metadata?.source ?? 'unknown',
-    time: createdAt
-      ? createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : '—',
     snippet,
-    messageCount: messages.length,
   }
 }
 
@@ -55,22 +48,22 @@ export default function TimeTravelPanel({
       ) : (
         <ul className={styles.list}>
           {history.map((state, index) => {
+            console.log('History index:', index)
+            console.log('History state:', state)
+            
+            if ('__start__' === state.next?.[0] || undefined === state.next?.[0]) {
+              console.log('Skipping checkpoint')
+              return null
+            }
+
             const info = formatCheckpointLabel(state, index)
             const checkpointId = state.checkpoint?.checkpoint_id
             const isLatest = index === 0
             return (
               <li key={checkpointId ?? index} className={styles.item}>
                 <div className={styles.itemInfo}>
-                  <span className={styles.itemMeta}>
-                    {isLatest && <span className={styles.latestBadge}>latest</span>}
-                    <span className={styles.step}>step {info.step}</span>
-                    <span className={styles.time}>{info.time}</span>
-                  </span>
                   <span className={styles.snippet} title={info.snippet}>
                     {info.snippet}
-                  </span>
-                  <span className={styles.count}>
-                    {info.messageCount} message{info.messageCount === 1 ? '' : 's'}
                   </span>
                 </div>
                 <button
