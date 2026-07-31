@@ -60,7 +60,7 @@ export default function Sidebar({ threads, activeThreadId, loading, onSelectThre
               disabled={loading}
               title={collapsed ? formatThreadLabel(t) : t.thread_id}
             >
-              <span className={styles.threadIcon} aria-hidden="true">💬</span>
+              <span className={styles.threadIcon} aria-hidden="true">🗪</span>
               <span className={styles.threadLabel}>{formatThreadLabel(t)}</span>
             </button>
             {!collapsed && (
