@@ -16,6 +16,7 @@ import logging
 import asyncio
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
+from tool.search import load_search_tools
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,11 +41,17 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     
     model = ChatHuggingFace(llm=llm)
 
+    search_tools = await load_search_tools()
+
+    logger.info(f"Tools: {search_tools}")
+
+    model_with_tools = model.bind_tools(search_tools)
+
     logger.info(f"State:{state}")
 
     messages = state["messages"]
     content = ""
-    async for chunk in model.astream(messages):
+    async for chunk in model_with_tools.astream(messages):
         logger.info(f"Chunk:{chunk}")
         if chunk.content:
             content += chunk.content
