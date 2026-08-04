@@ -5,7 +5,7 @@ client = MultiServerMCPClient(
         {
             'Tavily': {
                 'transport': 'http',
-                'url': f'https://mcp.tavily.com/mcp/?tavilyApiKey={os.environ['TAVILY_API_KEY']}'
+                'url': f'https://mcp.tavily.com/mcp/?tavilyApiKey={os.environ["TAVILY_API_KEY"]}'
             },
         }
     )
