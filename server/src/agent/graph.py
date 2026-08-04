@@ -5,12 +5,12 @@ Returns a predefined response. Replace logic and configuration as needed.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Dict
+from typing import Any, Dict
 
+from utils.state import State
+from utils.context import Context
 from langgraph.graph import StateGraph
-from langgraph.graph.message import add_messages
 from langgraph.runtime import Runtime
-from typing_extensions import TypedDict
 
 import logging
 import asyncio
@@ -19,29 +19,6 @@ from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-class Context(TypedDict):
-    """Context parameters for the agent.
-
-    Set these when creating assistants OR when invoking the graph.
-    See: https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/
-    """
-
-    hf_token: str
-    my_configurable_param: str
-
-
-class State(TypedDict):
-    """Input state for the agent.
-
-    Defines the initial structure of incoming data.
-    See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
-    """
-
-    # add_messages appends new messages to the checkpointed history instead of
-    # overwriting it, so each run only needs to send the new human message.
-    messages: Annotated[list, add_messages]
-
 
 async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     """Process input and returns output.
