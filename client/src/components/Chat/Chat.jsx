@@ -310,7 +310,7 @@ export default function Chat() {
           {
             input: null,
             context: { hf_token: hfToken },
-            streamMode: ['messages'],
+            streamMode: ['events'],
             checkpointId: newConfig.configurable?.checkpoint_id,
           }
         )
@@ -322,7 +322,7 @@ export default function Chat() {
           {
             input: { messages: [humanMessage] },
             context: { hf_token: hfToken },
-            streamMode: ['messages'],
+            streamMode: ['events'],
           },
         )
       }
@@ -332,9 +332,9 @@ export default function Chat() {
       for await (const event of stream) {
         console.log('Event:', event) // Debug log to see what events we're getting
 
-        if (event.event === 'messages/partial') {
+        if (event.data.event === 'on_chat_model_stream') {
           // Handle values streaming
-          const value = event.data[0]?.content
+          const value = event.data.data.chunk?.content
           console.log('Values event:', value)
           if (value !== undefined) {
             const text = String(value)
@@ -348,7 +348,7 @@ export default function Chat() {
                 const updatedMessages = [...messages]
                 updatedMessages[lastMessageIndex] = { 
                   ...updatedMessages[lastMessageIndex], 
-                  content: text 
+                  content: updatedMessages[lastMessageIndex].content + text 
                 }
                 return updatedMessages
               } else {
