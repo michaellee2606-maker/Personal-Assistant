@@ -13,10 +13,8 @@ from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
 
 import logging
-import asyncio
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
-from tool.search import load_search_tools
+from agent.supervisor_agent import init_supervisor_agent
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,30 +29,22 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
     if not hf_token:
         raise ValueError("Hugging Face token is required but not provided in context")
 
-    # Initialize the model with the token from runtime context
-    # Using asyncio.to_thread to avoid blocking calls in async context
-    llm = await asyncio.to_thread(
-        HuggingFaceEndpoint,
-        repo_id="meta-llama/Llama-3.1-8B-Instruct",
-        huggingfacehub_api_token=hf_token,
-    )
-    
-    model = ChatHuggingFace(llm=llm)
-
-    search_tools = await load_search_tools()
-
-    logger.info(f"Tools: {search_tools}")
-
-    model_with_tools = model.bind_tools(search_tools)
+    supervisor_agent = await init_supervisor_agent(hf_token)
 
     logger.info(f"State:{state}")
 
     messages = state["messages"]
     content = ""
-    async for chunk in model_with_tools.astream(messages):
-        logger.info(f"Chunk:{chunk}")
-        if chunk.content:
-            content += chunk.content
+
+    async for stream in supervisor_agent.astream_events(
+        {"messages": messages},
+        version="v2"
+    ):
+        logger.debug(f"Stream:{stream}")
+        if stream['event']=='on_chat_model_stream':
+            chunk = stream['data']['chunk']
+            chunk_content = chunk.content
+            content += chunk_content           
 
     logger.info(f"Response:{content}")
 
