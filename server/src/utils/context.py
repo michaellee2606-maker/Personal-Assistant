@@ -11,5 +11,4 @@ class Context(TypedDict):
     See: https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/
     """
 
-    hf_token: str
     my_configurable_param: str

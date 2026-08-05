@@ -1,7 +1,8 @@
 import asyncio
 
-from utils.context import Context
-from langchain.tools import tool, ToolRuntime
+from web.login import get_or_create_agent
+
+from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain.agents.middleware import ToolRetryMiddleware
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
@@ -74,10 +75,9 @@ async def init_search_agent(hf_token: str):
         "any query involving online search or information retrieval."
     ),
 )
-async def call_search_agent(query: str, runtime: ToolRuntime[Context]):
-    hf_token = runtime.context["hf_token"]
+async def call_search_agent(query: str):
 
-    search_agent = await init_search_agent(hf_token)
+    search_agent = await get_or_create_agent("search")
 
     logger.info(f'[Search Agent] - Input: {query}')
     result = await search_agent.ainvoke({"messages": [{"role": "human", "content": query}]})

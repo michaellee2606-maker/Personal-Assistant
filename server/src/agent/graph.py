@@ -14,7 +14,7 @@ from langgraph.runtime import Runtime
 
 import logging
 
-from agent.supervisor_agent import init_supervisor_agent
+from web.login import get_or_create_agent
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,12 +24,8 @@ async def call_model(state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
 
     Can use runtime context to alter behavior.
     """
-    hf_token = runtime.context.get("hf_token")
-    
-    if not hf_token:
-        raise ValueError("Hugging Face token is required but not provided in context")
-
-    supervisor_agent = await init_supervisor_agent(hf_token)
+    # Reuse the shared supervisor instance (created from the login token).
+    supervisor_agent = await get_or_create_agent("supervisor")
 
     logger.info(f"State:{state}")
 

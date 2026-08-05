@@ -1,7 +1,8 @@
 import asyncio
 
-from utils.context import Context
-from langchain.tools import tool, ToolRuntime
+from web.login import get_or_create_agent
+
+from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain.agents.middleware import ToolRetryMiddleware
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
@@ -76,10 +77,8 @@ async def init_navigate_agent(hf_token: str):
         "lookups."
     ),
 )
-async def call_navigate_agent(query: str, runtime: ToolRuntime[Context]):
-    hf_token = runtime.context["hf_token"]
-
-    navigate_agent = await init_navigate_agent(hf_token)
+async def call_navigate_agent(query: str):
+    navigate_agent = await get_or_create_agent("navigate")
 
     logger.info(f'[Navigate Agent] - Input: {query}')
     result = await navigate_agent.ainvoke({"messages": [{"role": "human", "content": query}]})
