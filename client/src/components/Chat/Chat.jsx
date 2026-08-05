@@ -25,8 +25,6 @@ function ChatMessage({ role, content, isStreaming }) {
 const GREETING = { role: 'assistant', content: 'Hello! How can I help you today?', id: 0 }
 
 export default function Chat() {
-  const { hfToken } = useAuth()
-
   const [messages, setMessages] = useState([GREETING])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -309,7 +307,6 @@ export default function Chat() {
           assistantId,
           {
             input: null,
-            context: { hf_token: hfToken },
             streamMode: ['events'],
             checkpointId: newConfig.configurable?.checkpoint_id,
           }
@@ -321,7 +318,6 @@ export default function Chat() {
           assistantId,
           {
             input: { messages: [humanMessage] },
-            context: { hf_token: hfToken },
             streamMode: ['events'],
           },
         )

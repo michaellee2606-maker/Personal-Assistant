@@ -2,18 +2,35 @@ import { useState } from 'react'
 import { useAuth } from '../../context/useAuth.js'
 import styles from './Login.module.css'
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://cripple-lee-personal-assistant-server.hf.space'
+
 export default function Login() {
   const { setHfToken } = useAuth()
   const [token, setToken] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const trimmed = token.trim()
     if (!trimmed) return
 
     setSubmitting(true)
-    setHfToken(trimmed)
+    setError(null)
+    try {
+      const response = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hf_token: trimmed }),
+      })
+      if (!response.ok) {
+        throw new Error(`Login failed: ${response.status} ${response.statusText}`)
+      }
+      setHfToken(trimmed)
+    } catch (err) {
+      setError(err.message)
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -42,8 +59,10 @@ export default function Login() {
             type="submit"
             disabled={submitting || !token.trim()}
           >
-            Continue
+            {submitting ? 'Signing in…' : 'Continue'}
           </button>
+
+          {error && <p className={styles.error} role="alert">{error}</p>}
         </form>
 
         <p className={styles.note}>
