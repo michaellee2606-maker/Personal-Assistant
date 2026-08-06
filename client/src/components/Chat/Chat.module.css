@@ -141,6 +141,10 @@
       cursor: not-allowed;
     }
   }
+
+  .pauseButton {
+    background: #b91c1c;
+  }
 }
 
 .loading {

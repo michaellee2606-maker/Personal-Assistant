@@ -40,6 +40,9 @@ export default function Chat() {
   // from the sidebar shows the messages at the fork point instead of the tip.
   const [forkedCheckpoints, setForkedCheckpoints] = useState({})
   const messagesEndRef = useRef(null)
+  // Identifies the in-flight server-side run ({ threadId, runId }) so
+  // Pause can cancel it on the server, not just close the local stream.
+  const activeRunRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -254,6 +257,22 @@ export default function Chat() {
     }
   }
 
+  const handleStopStream = async (e) => {
+    e.preventDefault()
+    // Cancel the run on the server so the agent stops generating; the
+    // server closing the run also ends the SSE stream and the loop below.
+    const activeRun = activeRunRef.current
+    if (activeRun) {
+      activeRunRef.current = null
+      try {
+        await client.runs.cancel(activeRun.threadId, activeRun.runId)
+      } catch (err) {
+        console.error('Failed to cancel run:', err)
+      }
+    }
+  }
+
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     const text = input.trim()
@@ -309,6 +328,9 @@ export default function Chat() {
             input: null,
             streamMode: ['events'],
             checkpointId: newConfig.configurable?.checkpoint_id,
+            onRunCreated: ({ run_id }) => {
+              activeRunRef.current = { threadId: currentThreadId, runId: run_id }
+            },
           }
         )
       } else {
@@ -319,6 +341,9 @@ export default function Chat() {
           {
             input: { messages: [humanMessage] },
             streamMode: ['events'],
+            onRunCreated: ({ run_id }) => {
+              activeRunRef.current = { threadId: currentThreadId, runId: run_id }
+            },
           },
         )
       }
@@ -357,6 +382,8 @@ export default function Chat() {
         } 
       }
 
+      // The stream ended (completed or stopped); forget the run handle.
+      activeRunRef.current = null
       setStreamingId(null)
       // The run created a new checkpoint at the thread tip; clear the fork
       // point so following messages continue from the latest state, and drop
@@ -379,6 +406,7 @@ export default function Chat() {
     } catch (err) {
       setError(err.message)
     } finally {
+      activeRunRef.current = null
       setLoading(false)
     }
 }
@@ -431,9 +459,20 @@ export default function Chat() {
             disabled={loading}
             aria-label="Message"
           />
-          <button type="submit" disabled={loading || !input.trim()}>
-            Send
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              className={styles.pauseButton}
+              onClick={handleStopStream}
+              title="Stop generating"
+            >
+              Pause
+            </button>
+          ) : (
+            <button type="submit" disabled={!input.trim()}>
+              Send
+            </button>
+          )}
         </form>
       </div>
       {showTimeTravel && (
