@@ -9,6 +9,7 @@ every request.
 from __future__ import annotations
 
 import asyncio
+import importlib
 from typing import Any
 
 from fastapi import FastAPI
@@ -16,13 +17,13 @@ from pydantic import BaseModel
 
 from utils import shared_state
 
-from agent.supervisor_agent import init_supervisor_agent
-from agent.navigate_agent import init_navigate_agent
-from agent.search_agent import init_search_agent
-
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+async def _async_import(module_path: str) -> Any:
+    """Import a module in a worker thread so it doesn't block the event loop."""
+    return await asyncio.to_thread(importlib.import_module, module_path)
 
 async def get_or_create_agent(name: str) -> Any:
     """Return the cached agent instance, creating it on first use.
@@ -50,13 +51,17 @@ async def get_or_create_agent(name: str) -> Any:
 
         logger.info(f"Instantiating '{name}' agent with the logged-in HF token.")
 
-        # Imported lazily to avoid circular imports between agent modules.
+        # Imported lazily (and off the event loop) to avoid circular imports
+        # between agent modules.
         if name == "supervisor":
-            agent = await init_supervisor_agent(shared_state.hf_token)
+            module = await _async_import("agent.supervisor_agent")
+            agent = await module.init_supervisor_agent(shared_state.hf_token)
         elif name == "navigate":
-            agent = await init_navigate_agent(shared_state.hf_token)
+            module = await _async_import("agent.navigate_agent")
+            agent = await module.init_navigate_agent(shared_state.hf_token)
         elif name == "search":
-            agent = await init_search_agent(shared_state.hf_token)
+            module = await _async_import("agent.search_agent")
+            agent = await module.init_search_agent(shared_state.hf_token)
         else:
             raise ValueError(f"Unknown agent name: {name!r}")
 
