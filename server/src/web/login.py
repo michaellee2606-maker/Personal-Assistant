@@ -16,6 +16,10 @@ from pydantic import BaseModel
 
 from utils import shared_state
 
+from agent.supervisor_agent import init_supervisor_agent
+from agent.navigate_agent import init_navigate_agent
+from agent.search_agent import init_search_agent
+
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,16 +52,10 @@ async def get_or_create_agent(name: str) -> Any:
 
         # Imported lazily to avoid circular imports between agent modules.
         if name == "supervisor":
-            from agent.supervisor_agent import init_supervisor_agent
-
             agent = await init_supervisor_agent(shared_state.hf_token)
         elif name == "navigate":
-            from agent.navigate_agent import init_navigate_agent
-
             agent = await init_navigate_agent(shared_state.hf_token)
         elif name == "search":
-            from agent.search_agent import init_search_agent
-
             agent = await init_search_agent(shared_state.hf_token)
         else:
             raise ValueError(f"Unknown agent name: {name!r}")
