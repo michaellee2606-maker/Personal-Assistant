@@ -331,6 +331,7 @@ export default function Chat() {
             onRunCreated: ({ run_id }) => {
               activeRunRef.current = { threadId: currentThreadId, runId: run_id }
             },
+            onDisconnect: "cancel",
           }
         )
       } else {
@@ -344,6 +345,7 @@ export default function Chat() {
             onRunCreated: ({ run_id }) => {
               activeRunRef.current = { threadId: currentThreadId, runId: run_id }
             },
+            onDisconnect: "cancel",
           },
         )
       }
